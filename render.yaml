@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: book-recommendation-api
-    env: python
-    buildCommand: |
-      apt-get update && \
-      apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev && \
-      pip install -r requirements.txt
-    startCommand: gunicorn -b 0.0.0.0:$PORT server:app
