@@ -71,7 +71,7 @@ def get_top_books(author: str):
         if len(top_books_list) == 6:  
             break
     
-    return {'Top Books':top_books_list}
+    return {'top_books':top_books_list}
 
 @app.post('/recommend_books')
 def recommend(user_input: str):
@@ -109,7 +109,7 @@ def recommend(user_input: str):
             break
     # Return JSON response using jsonify
     # return jsonify(recs)
-    return {'Recommendations':recs}
+    return {'recommendations':recs}
 
 if __name__ == "__main__":
     uvicorn.run(app, host='127.0.0.1', port=8000)
