@@ -1,7 +1,8 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
 import pickle
 import numpy as np
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 pt = pickle.load(open('pt.pkl','rb'))
 books = pickle.load(open('books.pkl','rb'))
@@ -9,24 +10,31 @@ similarity_scores = pickle.load(open('similarity_scores.pkl','rb'))
 
 authors = pickle.load(open('authors.pkl','rb'))
 
-app = Flask(__name__)
-CORS(app)
+app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
-@app.route('/')
+@app.get('/')
 def home():
-    return 'Welcome to our website!'
+    return {'message': 'Welcome to our website!'}
 
 
-@app.route('/data')
+@app.get('/data')
 def sendData():
     with open('popular.pkl', 'rb') as file:
         data = pickle.load(file)
     
     data_list = data.to_dict(orient='records')
-    return jsonify(data_list)
+    return data_list
+    # return jsonify(data_list)
 
-@app.route('/get_authors', methods=['GET'])
+@app.get('/get_authors')
 def get_authors():
     author_book_counts = authors['Book-Author'].value_counts()
     authors_with_more_than_6_books = author_book_counts[author_book_counts >= 6].index
@@ -34,14 +42,16 @@ def get_authors():
     filtered_books = authors[authors['Book-Author'].isin(authors_with_more_than_6_books)]
 
     author_avg_ratings = filtered_books.groupby('Book-Author')['Book-Rating'].mean().sort_values(ascending=False).reset_index()
+
     # Extract unique authors based on average rating
     unique_authors = author_avg_ratings.head(100)['Book-Author'].tolist()
-    return jsonify(unique_authors)
 
-@app.route('/get_top_books', methods=['POST'])
-def get_top_books():
-    data = request.get_json()
-    author = data.get('author')
+    return {'unique_authors':unique_authors}
+
+@app.post('/get_top_books')
+def get_top_books(author: str):
+    # data = request.get_json()
+    # author = data.get('author')
     
     # Filter the DataFrame for the selected author
     author_books = authors[authors['Book-Author'] == author]
@@ -61,18 +71,19 @@ def get_top_books():
         if len(top_books_list) == 6:  
             break
     
-    return jsonify(top_books_list)
+    return {'Top Books':top_books_list}
 
-@app.route('/recommend_books', methods=['POST'])
-def recommend():
-    data = request.get_json()
-    user_input = data.get('user_input')
+@app.post('/recommend_books')
+def recommend(user_input: str):
+    # data = request.get_json()
+    # user_input = data.get('user_input')
 
     # Find indices where pt.index contains the user_input as a substring
     matching_indices = pt.index[pt.index.str.contains(user_input, case=False)]
 
     if len(matching_indices) == 0:
-        return jsonify({'error': 'No matching books found'}), 404
+        # return jsonify({'error': 'No matching books found'}), 404
+        return {'error': 'No matching books found'}
 
     # Get up to 5 recommendations for each matching index
     recs = []
@@ -97,7 +108,8 @@ def recommend():
         if len(recs) == 6:  # Limit to 5 recommendations
             break
     # Return JSON response using jsonify
-    return jsonify(recs)
+    # return jsonify(recs)
+    return {'Recommendations':recs}
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    uvicorn.run(app, host='127.0.0.1', port=8000)
